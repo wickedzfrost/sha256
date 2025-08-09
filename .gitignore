@@ -1,0 +1,59 @@
+# === Visual Studio ===
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+*.sln
+*.vscode
+*.vcxproj
+*.vcxproj.filters
+
+# === Build Artifacts ===
+bin/
+obj/
+build/
+Debug/
+Release/
+x64/
+x86/
+
+# === Compiled binaries ===
+*.exe
+*.dll
+*.lib
+*.pdb
+*.idb
+*.ilk
+*.exp
+*.log
+
+# === CMake (if used) ===
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# === Intermediate files ===
+*.tlog
+*.lastbuildstate
+*.tmp
+*.cache
+*.bak
+
+# === OS/System files ===
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# === Shader cache (optional) ===
+*.spv
+*.glslcache
+
+# === Optional folders for OpenGL assets ===
+# Comment out if you want to track these
+# assets/
+# shaders/
