@@ -1,7 +1,55 @@
 #include <array>
 #include <bitset>
 #include <iostream>
+#include <string>
 #include <string_view>
+#include <vector>
+
+using Bytes = std::vector<std::uint8_t>;
+using Binary = std::vector<std::bitset<8>>;
+
+Bytes toBytes(const std::string& message)
+{
+    return Bytes{ message.begin(), message.end() };
+}
+
+Binary toBinary(const Bytes& bytes)
+{
+    Binary binaryVector{};
+
+    for (std::uint8_t byte : bytes)
+    {
+        std::bitset<8> bits{ byte };
+        binaryVector.push_back(bits);
+    }
+
+    return binaryVector;
+}
+
+int getMessageSize(const std::string& message)
+{
+    return static_cast<int>(message.size()) * 8;
+}
+
+int getMessageSize(const Binary& binary)
+{
+    return static_cast<int>(binary.size()) * 8;
+}
+
+Binary preprocess(Binary& binary)
+{
+    // Append 1 to the end
+    binary.push_back(std::bitset<8> { 0b10000000 });
+    int bitSize{ getMessageSize(binary) };
+
+    while (bitSize % 512 != 0)
+    {
+        binary.push_back(std::bitset<8>{ 0b0 });
+        bitSize += 8;
+    }
+
+    return binary;
+}
 
 int main(int argc, char* argv[])
 {
@@ -12,8 +60,30 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    const char* message{ argv[1] };
+    const std::string message{ argv[1] };
+    [[maybe_unused]] const int messageSize{ getMessageSize(message) };
     std::cout << "Message: " << message << '\n';
+
+    std::cout << "Enter UTF-8 text: ";
+    std::string input{};
+    std::getline(std::cin >> std::ws, input);
+
+    Binary binary{ toBinary(toBytes(input)) };
+    binary = preprocess(binary);
+    
+    int counter{ 0 };
+    for (std::bitset<8> byte : binary)
+    {
+        std::cout << byte << ' ';
+        counter++;
+
+        if (counter % 8 == 0)
+            std::cout << '\n';
+    }
+
+    std::cout << '\n';
+
+    std::cout << "Number of bits: " << getMessageSize(binary) << '\n';
 
     /*
         Steps to produce some hash!
@@ -51,7 +121,6 @@ int main(int argc, char* argv[])
         0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
     };
-
 
     return 0;
 }
