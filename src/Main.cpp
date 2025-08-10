@@ -26,32 +26,62 @@ Binary toBinary(const Bytes& bytes)
     return binaryVector;
 }
 
-int getMessageSize(const std::string& message)
+int getMessageBitSize(const std::string& message)
 {
     return static_cast<int>(message.size()) * 8;
 }
 
-int getMessageSize(const Binary& binary)
+int getMessageBitSize(const Binary& binary)
 {
     return static_cast<int>(binary.size()) * 8;
 }
 
-Binary preprocess(Binary& binary)
+void printReverse(const Binary& binary)
+{
+    std::cout << "Reverse: \n";
+
+    int counter{ 0 };
+    for (auto it{ binary.rbegin() }; it != binary.rend(); ++it)
+    {
+        std::cout << *it << ' ';
+        ++counter;
+
+        if (counter % 8 == 0)
+            std::cout << '\n';
+    }
+
+    std::cout << "\n\n";
+}
+
+Binary preprocess(Binary& binary, [[maybe_unused]] const int messageBitSize)
 {
     // Append 1 to the end
     binary.push_back(std::bitset<8> { 0b10000000 });
-    int bitSize{ getMessageSize(binary) };
+    int bitSize{ getMessageBitSize(binary) };
 
+    // Ensure the data is a multiple of 512
     while (bitSize % 512 != 0)
     {
         binary.push_back(std::bitset<8>{ 0b0 });
         bitSize += 8;
     }
 
+    // Append 64 bit big-endian integer representing length of message in binary
+
+    printReverse(binary);
+
+    std::cout << "Orignal Message Bit Size: " << messageBitSize << '\n';
+    std::bitset<64> binarySize{ static_cast<uint64_t>(messageBitSize) };
+    
+    for (int i{ 0 }; i < 8; ++i)
+    {
+        std::cout << binary[i].to_ulong() << '\n';
+    }
+
     return binary;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, [[maybe_unused]] char* argv[])
 {
     if (argc != 2)
     {
@@ -60,22 +90,20 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    const std::string message{ argv[1] };
-    [[maybe_unused]] const int messageSize{ getMessageSize(message) };
-    std::cout << "Message: " << message << '\n';
+    std::cout << "Enter some text: ";
+    std::string message{};
+    std::getline(std::cin >> std::ws, message);
 
-    std::cout << "Enter UTF-8 text: ";
-    std::string input{};
-    std::getline(std::cin >> std::ws, input);
+    const int messageBitSize{ getMessageBitSize(message) };
 
-    Binary binary{ toBinary(toBytes(input)) };
-    binary = preprocess(binary);
+    Binary binary{ toBinary(toBytes(message)) };
+    binary = preprocess(binary, messageBitSize);
     
     int counter{ 0 };
     for (std::bitset<8> byte : binary)
     {
         std::cout << byte << ' ';
-        counter++;
+        ++counter;
 
         if (counter % 8 == 0)
             std::cout << '\n';
@@ -83,7 +111,7 @@ int main(int argc, char* argv[])
 
     std::cout << '\n';
 
-    std::cout << "Number of bits: " << getMessageSize(binary) << '\n';
+    std::cout << "Number of bits: " << getMessageBitSize(binary) << '\n';
 
     /*
         Steps to produce some hash!
