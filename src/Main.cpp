@@ -67,15 +67,16 @@ Binary preprocess(Binary& binary, [[maybe_unused]] const int messageBitSize)
     }
 
     // Append 64 bit big-endian integer representing length of message in binary
-
-    printReverse(binary);
-
-    std::cout << "Orignal Message Bit Size: " << messageBitSize << '\n';
     std::bitset<64> binarySize{ static_cast<uint64_t>(messageBitSize) };
     
+    const uint64_t data = binarySize.to_ullong();
+
+    auto iter{ binary.rbegin() };
     for (int i{ 0 }; i < 8; ++i)
     {
-        std::cout << binary[i].to_ulong() << '\n';
+        const std::bitset<8> byte{ uint8_t{ data >> (i * 8) & 0xFF } };
+        *iter = byte;
+        ++iter;
     }
 
     return binary;
