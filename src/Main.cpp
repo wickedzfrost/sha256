@@ -1,5 +1,6 @@
 #include <array>
 #include <bitset>
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -7,6 +8,14 @@
 
 using Bytes = std::vector<std::uint8_t>;
 using Binary = std::vector<std::bitset<8>>;
+
+/*
+    Converts a string into binary
+*/
+std::vector<std::uint8_t> toBinary2(const std::string& message)
+{
+    return std::vector<std::uint8_t>{message.begin(), message.end()};
+}
 
 Bytes toBytes(const std::string& message)
 {
@@ -26,55 +35,57 @@ Binary toBinary(const Bytes& bytes)
     return binaryVector;
 }
 
-int getMessageBitSize(const std::string& message)
+template<typename T>
+int getMessageBitSize(const T message)
 {
     return static_cast<int>(message.size()) * 8;
 }
 
-int getMessageBitSize(const Binary& binary)
+// Might remove later
+// 
+//void printReverse(const Binary& binary)
+//{
+//    std::cout << "Reverse: \n";
+//
+//    int counter{ 0 };
+//    for (auto it{ binary.rbegin() }; it != binary.rend(); ++it)
+//    {
+//        std::cout << *it << ' ';
+//        ++counter;
+//
+//        if (counter % 8 == 0)
+//            std::cout << '\n';
+//    }
+//
+//    std::cout << "\n\n";
+//}
+
+template<int N>
+void appendBit(Binary& binary, const std::bitset<N> bitsToAppend)
 {
-    return static_cast<int>(binary.size()) * 8;
+    binary.push_back(bitsToAppend);
 }
 
-void printReverse(const Binary& binary)
-{
-    std::cout << "Reverse: \n";
-
-    int counter{ 0 };
-    for (auto it{ binary.rbegin() }; it != binary.rend(); ++it)
-    {
-        std::cout << *it << ' ';
-        ++counter;
-
-        if (counter % 8 == 0)
-            std::cout << '\n';
-    }
-
-    std::cout << "\n\n";
-}
-
-Binary preprocess(Binary& binary, [[maybe_unused]] const int messageBitSize)
+Binary preprocess(Binary& binary, const std::uint64_t originalMessageBitSize)
 {
     // Append 1 to the end
-    binary.push_back(std::bitset<8> { 0b10000000 });
-    int bitSize{ getMessageBitSize(binary) };
+    constexpr std::bitset<8> oneBit{ 0x80 };
+    appendBit(binary, oneBit);
+
+    int currentBitSize{ getMessageBitSize(binary) };
 
     // Ensure the data is a multiple of 512
-    while (bitSize % 512 != 0)
+    while (currentBitSize % 512 != 0)
     {
-        binary.push_back(std::bitset<8>{ 0b0 });
-        bitSize += 8;
+        binary.push_back(std::bitset<8>{ 0x0 });
+        currentBitSize += 8;
     }
 
     // Append 64 bit big-endian integer representing length of message in binary
-    std::bitset<64> binarySize{ static_cast<uint64_t>(messageBitSize) };
-    
-    const uint64_t data = binarySize.to_ullong();
-
     auto iter{ binary.rbegin() };
     for (int i{ 0 }; i < 8; ++i)
     {
-        const std::bitset<8> byte{ uint8_t{ data >> (i * 8) & 0xFF } };
+        const std::bitset<8> byte{ uint8_t{ originalMessageBitSize >> (i * 8) & 0xFF } };
         *iter = byte;
         ++iter;
     }
@@ -118,7 +129,7 @@ int main(int argc, [[maybe_unused]] char* argv[])
     std::cout << "Enter some text: ";
     std::string message{};
     std::getline(std::cin >> std::ws, message);
-
+    
     const int messageBitSize{ getMessageBitSize(message) };
 
     Binary binary{ toBinary(toBytes(message)) };
