@@ -82,6 +82,30 @@ Binary preprocess(Binary& binary, [[maybe_unused]] const int messageBitSize)
     return binary;
 }
 
+std::vector<std::bitset<32>> createMessageSchedule(const Binary& binary)
+{
+    std::vector<std::bitset<32>> messageSchedule{};
+    
+    std::bitset<32> word{};
+    for (int i{ 0 }; i < 64; ++i)
+    {
+        // Whatever the fuck this is?????
+        uint32_t data = binary[i].to_ulong() << (4 - ((i + 1) % 4) % 4) * 8;
+        word |= std::bitset<32>{ data };
+    
+        if ((i + 1) % 4 == 0)
+        {
+            messageSchedule.push_back(word);
+            word.reset();
+        }
+    }
+
+    for(std::bitset<32> byte : messageSchedule)
+        std::cout << "Word: " << byte << '\n';
+
+    return messageSchedule;
+}
+
 int main(int argc, [[maybe_unused]] char* argv[])
 {
     if (argc != 2)
@@ -106,13 +130,15 @@ int main(int argc, [[maybe_unused]] char* argv[])
         std::cout << byte << ' ';
         ++counter;
 
-        if (counter % 8 == 0)
+        if (counter % 4 == 0)
             std::cout << '\n';
     }
 
     std::cout << '\n';
 
     std::cout << "Number of bits: " << getMessageBitSize(binary) << '\n';
+
+    createMessageSchedule(binary);
 
     /*
         Steps to produce some hash!
