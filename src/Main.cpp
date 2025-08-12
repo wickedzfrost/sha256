@@ -6,70 +6,28 @@
 #include <string_view>
 #include <vector>
 
-using Bytes = std::vector<std::uint8_t>;
-using Binary = std::vector<std::bitset<8>>;
+using Binary = std::vector<std::uint8_t>;
 
-/*
-    Converts a string into binary
-*/
-std::vector<std::uint8_t> toBinary2(const std::string& message)
+std::vector<std::uint8_t> toBinary(const std::string& message)
 {
     return std::vector<std::uint8_t>{message.begin(), message.end()};
 }
 
-Bytes toBytes(const std::string& message)
-{
-    return Bytes{ message.begin(), message.end() };
-}
-
-Binary toBinary(const Bytes& bytes)
-{
-    Binary binaryVector{};
-
-    for (std::uint8_t byte : bytes)
-    {
-        std::bitset<8> bits{ byte };
-        binaryVector.push_back(bits);
-    }
-
-    return binaryVector;
-}
-
 template<typename T>
-int getMessageBitSize(const T message)
+int getMessageBitSize(const T& message)
 {
     return static_cast<int>(message.size()) * 8;
 }
 
-// Might remove later
-// 
-//void printReverse(const Binary& binary)
-//{
-//    std::cout << "Reverse: \n";
-//
-//    int counter{ 0 };
-//    for (auto it{ binary.rbegin() }; it != binary.rend(); ++it)
-//    {
-//        std::cout << *it << ' ';
-//        ++counter;
-//
-//        if (counter % 8 == 0)
-//            std::cout << '\n';
-//    }
-//
-//    std::cout << "\n\n";
-//}
-
-template<int N>
-void appendBit(Binary& binary, const std::bitset<N> bitsToAppend)
+void appendBit(Binary& binary, const std::uint8_t& bitsToAppend)
 {
     binary.push_back(bitsToAppend);
 }
 
-Binary preprocess(Binary& binary, const std::uint64_t originalMessageBitSize)
+Binary preprocess(Binary& binary, const std::uint64_t& originalMessageBitSize)
 {
     // Append 1 to the end
-    constexpr std::bitset<8> oneBit{ 0x80 };
+    constexpr std::uint8_t oneBit{ 0x80 };
     appendBit(binary, oneBit);
 
     int currentBitSize{ getMessageBitSize(binary) };
@@ -77,44 +35,47 @@ Binary preprocess(Binary& binary, const std::uint64_t originalMessageBitSize)
     // Ensure the data is a multiple of 512
     while (currentBitSize % 512 != 0)
     {
-        binary.push_back(std::bitset<8>{ 0x0 });
+        binary.push_back(std::uint8_t{ 0x0 });
         currentBitSize += 8;
     }
 
     // Append 64 bit big-endian integer representing length of message in binary
-    auto iter{ binary.rbegin() };
+    auto iterator{ binary.rbegin() };
     for (int i{ 0 }; i < 8; ++i)
     {
-        const std::bitset<8> byte{ uint8_t{ originalMessageBitSize >> (i * 8) & 0xFF } };
-        *iter = byte;
-        ++iter;
+        *iterator = uint8_t{ originalMessageBitSize >> (i * 8) & 0xFF };
+        ++iterator;
     }
 
     return binary;
 }
 
-std::vector<std::bitset<32>> createMessageSchedule(const Binary& binary)
+// binary is multiple of 512
+std::array<std::uint32_t, 64> createMessageSchedule(const Binary& binary)
 {
-    std::vector<std::bitset<32>> messageSchedule{};
-    
-    std::bitset<32> word{};
-    for (int i{ 0 }; i < 64; ++i)
+    std::array<std::uint32_t, 64> messageBlock{};
+
     {
-        // Whatever the fuck this is?????
-        uint32_t data = binary[i].to_ulong() << (4 - ((i + 1) % 4) % 4) * 8;
-        word |= std::bitset<32>{ data };
-    
-        if ((i + 1) % 4 == 0)
+        std::uint32_t word{};
+        std::size_t counter{ 0 };
+        for (int i{ 0 }; i < 64; ++i)
         {
-            messageSchedule.push_back(word);
-            word.reset();
+            // Whatever the fuck this is?????
+            word |= binary[i] << (4 - ((i + 1) % 4) % 4) * 8;
+    
+            if ((i + 1) % 4 == 0)
+            {
+                messageBlock[counter] = word;
+                word = uint32_t{};
+                ++counter;
+            }
         }
     }
 
-    for(std::bitset<32> byte : messageSchedule)
-        std::cout << "Word: " << byte << '\n';
+    for (std::uint32_t word : messageBlock)
+        std::cout << "Word: " << std::bitset<32>(word) << '\n';
 
-    return messageSchedule;
+    return messageBlock;
 }
 
 int main(int argc, [[maybe_unused]] char* argv[])
@@ -132,9 +93,9 @@ int main(int argc, [[maybe_unused]] char* argv[])
     
     const int messageBitSize{ getMessageBitSize(message) };
 
-    Binary binary{ toBinary(toBytes(message)) };
+    Binary binary{ toBinary(message) };
     binary = preprocess(binary, messageBitSize);
-    
+
     int counter{ 0 };
     for (std::bitset<8> byte : binary)
     {
