@@ -1,4 +1,5 @@
 #include <array>
+#include <bit>
 #include <bitset>
 #include <cstdint>
 #include <iostream>
@@ -48,6 +49,22 @@ Binary preprocess(Binary& binary, const std::uint64_t& originalMessageBitSize)
     }
 
     return binary;
+}
+
+std::uint32_t sigmaZero(const std::uint32_t& word)
+{
+    if (word == 0)
+        return word;
+
+    return std::rotr(word, 7) ^ std::rotr(word, 18) ^ (word >> 3);
+}
+
+std::uint32_t sigmaOne(const std::uint32_t& word)
+{
+    if (word == 0)
+        return word;
+
+    return std::rotr(word, 17) ^ std::rotr(word, 19) ^ (word >> 10);
 }
 
 // binary is multiple of 512
