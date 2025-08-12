@@ -89,6 +89,11 @@ std::array<std::uint32_t, 64> createMessageSchedule(const Binary& binary)
         }
     }
 
+    for (int i{ 16 }; i < 64; ++i)
+    {
+        messageBlock[i] = sigmaOne(messageBlock[i - 2]) + messageBlock[i - 7] + sigmaZero(messageBlock[i - 15]) + messageBlock[i - 16];
+    }
+
     for (std::uint32_t word : messageBlock)
         std::cout << "Word: " << std::bitset<32>(word) << '\n';
 
