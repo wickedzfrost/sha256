@@ -67,6 +67,52 @@ std::uint32_t sigmaOne(const std::uint32_t& word)
     return std::rotr(word, 17) ^ std::rotr(word, 19) ^ (word >> 10);
 }
 
+std::uint32_t compressionSigmaZero(const std::uint32_t& word)
+{
+    return std::rotr(word, 2) ^ std::rotr(word, 13) ^ std::rotr(word, 22);
+}
+
+std::uint32_t compressionSigmaOne(const std::uint32_t& word)
+{
+    return std::rotr(word, 6) ^ std::rotr(word, 11) ^ std::rotr(word, 25);
+}
+
+std::uint32_t choose(const std::array<std::uint32_t, 3>& bits)
+{
+    std::bitset<32> read{ bits[0] };
+    std::bitset<32> one{ bits[1] };
+    std::bitset<32> two{ bits[2] };
+
+    std::bitset<32> result{};
+
+    for (int i{ 0 }; i < 32; ++i)
+    {
+        if (read.test(i))
+            result[i] = one[i];
+        else
+            result[i] = two[i];
+    }
+
+    return result.to_ulong();
+}
+
+std::uint32_t maj(const std::array<std::uint32_t, 3>& bits)
+{
+    std::bitset<32> one{ bits[0] };
+    std::bitset<32> two{ bits[1] };
+    std::bitset<32> three{ bits[2] };
+
+    std::bitset<32> result{};
+
+    for (int i{ 0 }; i < 32; ++i)
+    {
+        if (one.test(i) + two.test(i) + three.test(i) >= 2)
+            result.set(i);
+    }
+
+    return result.to_ulong();
+}
+
 // binary is multiple of 512
 std::array<std::uint32_t, 64> createMessageSchedule(const Binary& binary)
 {
@@ -94,10 +140,47 @@ std::array<std::uint32_t, 64> createMessageSchedule(const Binary& binary)
         messageBlock[i] = sigmaOne(messageBlock[i - 2]) + messageBlock[i - 7] + sigmaZero(messageBlock[i - 15]) + messageBlock[i - 16];
     }
 
-    for (std::uint32_t word : messageBlock)
-        std::cout << "Word: " << std::bitset<32>(word) << '\n';
-
     return messageBlock;
+}
+
+std::array<std::uint32_t, 8> compressMessage(const std::array<std::uint32_t, 8>& sqrtConstants, const std::array<std::uint32_t, 64>& cbrtConstants, const std::array<std::uint32_t, 64>& messageSchedule)
+{
+    std::uint32_t a{ sqrtConstants[0] };
+    std::uint32_t b{ sqrtConstants[1] };
+    std::uint32_t c{ sqrtConstants[2] };
+    std::uint32_t d{ sqrtConstants[3] };
+    std::uint32_t e{ sqrtConstants[4] };
+    std::uint32_t f{ sqrtConstants[5] };
+    std::uint32_t g{ sqrtConstants[6] };
+    std::uint32_t h{ sqrtConstants[7] };
+
+    for (int i{ 0 }; i < 64; ++i)
+    {
+        std::array<std::uint32_t, 3> chooseParameter{ e, f, g };
+        std::array<std::uint32_t, 3> majParameter{ a, b, c };
+        std::uint32_t temp1{ h + compressionSigmaOne(e) + choose(chooseParameter) + cbrtConstants[i] + messageSchedule[i]};
+        std::uint32_t temp2{ compressionSigmaZero(a) + maj(majParameter) };
+
+        h = g;
+        g = f;
+        f = e;
+        e = d + temp1;
+        d = c;
+        c = b;
+        b = a;
+        a = temp1 + temp2;
+    }
+
+    a += sqrtConstants[0];
+    b += sqrtConstants[1];
+    c += sqrtConstants[2];
+    d += sqrtConstants[3];
+    e += sqrtConstants[4];
+    f += sqrtConstants[5];
+    g += sqrtConstants[6];
+    h += sqrtConstants[7];
+
+    return { a, b, c, d, e, f, g, h };
 }
 
 int main(int argc, [[maybe_unused]] char* argv[])
@@ -118,34 +201,7 @@ int main(int argc, [[maybe_unused]] char* argv[])
     Binary binary{ toBinary(message) };
     binary = preprocess(binary, messageBitSize);
 
-    int counter{ 0 };
-    for (std::bitset<8> byte : binary)
-    {
-        std::cout << byte << ' ';
-        ++counter;
-
-        if (counter % 4 == 0)
-            std::cout << '\n';
-    }
-
-    std::cout << '\n';
-
-    std::cout << "Number of bits: " << getMessageBitSize(binary) << '\n';
-
-    createMessageSchedule(binary);
-
-    /*
-        Steps to produce some hash!
-
-        1. Convert message to binary!
-
-        2. Preprocessing
-        2.1 Padding the message
-
-        3. Parse the message
-
-        4. 
-    */
+    std::array<std::uint32_t, 64> messageSchedule{ createMessageSchedule(binary) };
 
     constexpr std::array<std::uint32_t, 8> sqrtHash
     {
@@ -170,6 +226,14 @@ int main(int argc, [[maybe_unused]] char* argv[])
         0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
     };
+
+    std::array<std::uint32_t, 8> hash{ compressMessage(sqrtHash, cbrtHash, messageSchedule) };
+
+    std::cout << "\nSHA-256:\n";
+    for (int i{ 0 }; i < 8; ++i)
+    {
+        std::cout << std::hex << hash[i];
+    }
 
     return 0;
 }
